@@ -4,9 +4,11 @@ Dorfloader is a simple JS resource loader with the least possible implementation
 
 ## Usage
 
+First, you'll need a JSON list of the files you want to load somewhere. Just an array in a file - something like `["script.js"]` in `res/manifest.json` for our example. Then, on your page:
+
     <script src="res/dorf.min.js" data-manifest="res/manifest.json"></script>
 
-That's really all there is to it! Dorfloader will now load all files listed in `res/manifest.json`, emitting `progress` events as often as every 100ms during the load and a `load` event when all items are complete. Scripts will not be processed until all items are loaded, so feel free to assume that on execution everything is ready for you.
+That's really all there is to it! Dorfloader will now load all files listed in `res/manifest.json`, emitting `progress` events as often as every 100ms during the load and a `load` event when all items are complete. Scripts will not be processed until all items are loaded, so feel free to assume that on execution everything is ready for you - no waiting for events, just pure Javascript slurry without a care in the world.
 
 To actually **access your loaded resources**, should you want to, you can use `Dorf.get(resource)` where `resource` is any file as written in your manifest. You can also probably rely on the cache, but I wouldn't know anything about that. I'm just a Javascript monkey.
 

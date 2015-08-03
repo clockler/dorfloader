@@ -28,36 +28,55 @@ var constructor = function() {
 		}
 	};
 	this.load = function(e) {
-		Dorf.loadedItems++;
-		var cfg = e.target.config,
-			el = document.createElement(cfg[0]);
-
-		if(cfg[1])
+		if(e.target.status >= 400)
 		{
-			el.src = URL.createObjectURL(e.target.response);
+			// An error - not found, not allowed, server error, etc...
+			for(var i = 0; i < Dorf.elements.length; i++)
+			{
+				Dorf.elements[i].abort();
+			}
+			Dorf.dispatchEvent(new Event("error"));
 		} else
 		{
-			el.innerHTML = e.target.responseText;
-		}
-		Dorf.resources[e.target.res] = el;
-		if(cfg[2] instanceof HTMLElement) // Only a Sith deals in absolutes! Limited instanceof usage is fine.
-		{
-			Dorf.finals.push(el);
-			el.targetElement = cfg[2];
-		}
+			Dorf.loadedItems++;
+			var cfg = e.target.config,
+				el = document.createElement(cfg[0]);
 
-		if(Dorf.loadedItems >= Dorf.elements.length)
-		{
-			// Process any DOM-insertables
-			for(var i = 0; i < Dorf.finals.length; i++)
+			if(cfg[1])
 			{
-				Dorf.finals[i].targetElement.appendChild(Dorf.finals[i]);
-				delete Dorf.finals[i].targetElement;
+				el.src = URL.createObjectURL(e.target.response);
+			} else
+			{
+				el.innerHTML = e.target.responseText;
 			}
-			delete Dorf.finals;
-			Dorf.totalTime = Date.now() - Dorf.start;
-			Dorf.dispatchEvent(new Event("load"));
+			Dorf.resources[e.target.res] = el;
+			if(cfg[2] instanceof HTMLElement) // Only a Sith deals in absolutes! Limited instanceof usage is fine.
+			{
+				Dorf.finals.push(el);
+				el.targetElement = cfg[2];
+			}
+
+			if(Dorf.loadedItems >= Dorf.elements.length)
+			{
+				// Process any DOM-insertables
+				for(var i = 0; i < Dorf.finals.length; i++)
+				{
+					Dorf.finals[i].targetElement.appendChild(Dorf.finals[i]);
+					delete Dorf.finals[i].targetElement;
+				}
+				delete Dorf.finals;
+				Dorf.totalTime = Date.now() - Dorf.start;
+				Dorf.dispatchEvent(new Event("load"));
+			}
 		}
+	};
+	this.error = function(e) {
+		// We just die on errors, you don't want your thing to have unloaded resources
+		for(var i = 0; i < Dorf.elements.length; i++)
+		{
+			Dorf.elements[i].abort();
+		}
+		Dorf.dispatchEvent(new Event("error"));
 	};
 	this.associations = {
 		// Tag to use, is it binary, element to attach to once loaded
@@ -90,7 +109,6 @@ constructor.prototype.get = function(res)
 Dorf = new constructor();
 
 var resXHR = new XMLHttpRequest();
-resXHR.open("GET", uri);
 resXHR.addEventListener("load", function() {
 	var list = JSON.parse(resXHR.responseText),
 		prefix = uri.match(/(.*\/)[^\/]+$/);
@@ -119,11 +137,16 @@ resXHR.addEventListener("load", function() {
 			}
 			xhr.addEventListener("progress", Dorf.progress);
 			xhr.addEventListener("load", Dorf.load);
+			xhr.addEventListener("error", Dorf.error);
 			xhr.open("GET", prefix + item);
 			xhr.send("");
 		}
 	}
 });
+resXHR.addEventListener("error", function() {
+	Dorf.dispatchEvent(new Event("error"));
+});
+resXHR.open("GET", uri);
 resXHR.send("");
 
 })(document.currentScript.dataset.manifest || "manifest.json");
