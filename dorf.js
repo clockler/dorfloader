@@ -30,12 +30,7 @@ var constructor = function() {
 	this.load = function(e) {
 		if(e.target.status >= 400)
 		{
-			// An error - not found, not allowed, server error, etc...
-			for(var i = 0; i < Dorf.elements.length; i++)
-			{
-				Dorf.elements[i].abort();
-			}
-			Dorf.dispatchEvent(new Event("error"));
+			Dorf.error(new ErrorEvent("error", {"message": "Failed to retrieve resource " + e.target.res + " (" + e.target.status.toString() + " " + e.target.statusText + ")"}));
 		} else
 		{
 			Dorf.loadedItems++;
@@ -76,7 +71,7 @@ var constructor = function() {
 		{
 			Dorf.elements[i].abort();
 		}
-		Dorf.dispatchEvent(new Event("error"));
+		Dorf.dispatchEvent(new ErrorEvent("error", {"message": e.message}));
 	};
 	this.associations = {
 		// Tag to use, is it binary, element to attach to once loaded
@@ -108,44 +103,51 @@ constructor.prototype.get = function(res)
 
 Dorf = new constructor();
 
-var resXHR = new XMLHttpRequest();
-resXHR.addEventListener("load", function() {
-	var list = JSON.parse(resXHR.responseText),
-		prefix = uri.match(/(.*\/)[^\/]+$/);
-	if(!prefix)
+var resXHR = new XMLHttpRequest(),
+	errHandler = function(e) {
+		Dorf.dispatchEvent(new ErrorEvent("error", {"message": e.message}));
+	};
+resXHR.addEventListener("load", function(e) {
+	if(e.target.status >= 400)
 	{
-		prefix = "";
+		errHandler(new ErrorEvent("error", {"message": "Failed to retrieve manifest"}));
 	} else
 	{
-		prefix = prefix[1];
-	}
-	for(var i = 0; i < list.length; i++)
-	{
-		var item = list[i],
-			ext = item.match(/\.(\w+)$/)[1];
-
-		if(Dorf.associations.hasOwnProperty(ext))
+		var list = JSON.parse(resXHR.responseText),
+			prefix = uri.match(/(.*\/)[^\/]+$/);
+		if(!prefix)
 		{
-			var cfg = Dorf.associations[ext],
-				xhr = new XMLHttpRequest();
-			Dorf.elements.push(xhr);
-			xhr.res = item;
-			xhr.config = cfg;
-			if(cfg[1])
+			prefix = "";
+		} else
+		{
+			prefix = prefix[1];
+		}
+		for(var i = 0; i < list.length; i++)
+		{
+			var item = list[i],
+				ext = item.match(/\.(\w+)$/)[1];
+
+			if(Dorf.associations.hasOwnProperty(ext))
 			{
-				xhr.responseType = "blob";
+				var cfg = Dorf.associations[ext],
+					xhr = new XMLHttpRequest();
+				Dorf.elements.push(xhr);
+				xhr.res = item;
+				xhr.config = cfg;
+				if(cfg[1])
+				{
+					xhr.responseType = "blob";
+				}
+				xhr.addEventListener("progress", Dorf.progress);
+				xhr.addEventListener("load", Dorf.load);
+				xhr.addEventListener("error", Dorf.error);
+				xhr.open("GET", prefix + item);
+				xhr.send("");
 			}
-			xhr.addEventListener("progress", Dorf.progress);
-			xhr.addEventListener("load", Dorf.load);
-			xhr.addEventListener("error", Dorf.error);
-			xhr.open("GET", prefix + item);
-			xhr.send("");
 		}
 	}
 });
-resXHR.addEventListener("error", function() {
-	Dorf.dispatchEvent(new Event("error"));
-});
+resXHR.addEventListener("error", errHandler);
 resXHR.open("GET", uri);
 resXHR.send("");
 
