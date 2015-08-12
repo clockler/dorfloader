@@ -45,19 +45,13 @@ var constructor = function() {
 				el.innerHTML = e.target.responseText;
 			}
 			Dorf.resources[e.target.res] = el;
-			if(cfg[2] instanceof HTMLElement) // Only a Sith deals in absolutes! Limited instanceof usage is fine.
-			{
-				Dorf.finals.push(el);
-				el.targetElement = cfg[2];
-			}
 
 			if(Dorf.loadedItems >= Dorf.elements.length)
 			{
 				// Process any DOM-insertables
 				for(var i = 0; i < Dorf.finals.length; i++)
 				{
-					Dorf.finals[i].targetElement.appendChild(Dorf.finals[i]);
-					delete Dorf.finals[i].targetElement;
+					Dorf.finals[i][1].appendChild(Dorf.resources[Dorf.finals[i][0]]);
 				}
 				delete Dorf.finals;
 				Dorf.totalTime = Date.now() - Dorf.start;
@@ -137,6 +131,10 @@ resXHR.addEventListener("load", function(e) {
 				if(cfg[1])
 				{
 					xhr.responseType = "blob";
+				}
+				if(cfg[2] instanceof HTMLElement) // Only a Sith deals in absolutes! Limited instanceof usage is fine.
+				{
+					Dorf.finals.push([item, cfg[2]]);
 				}
 				xhr.addEventListener("progress", Dorf.progress);
 				xhr.addEventListener("load", Dorf.load);
